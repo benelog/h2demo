@@ -14,7 +14,6 @@
 	- 네이버 개발자센터(developers.naver.com) 개선
 - 네이버 기술 블로그 (d2.naver.com) 에 가끔 기고
 
-
 ---
 
 ## HTTP/2 세대의 이상
@@ -160,13 +159,13 @@ public class HomeController{
 ### Java9 : HttpClient
 
 ```java
-HttpClient httpClient = HttpClient.newHttpClient();
-HttpRequest request = HttpRequest.newBuilder(URI.create("https://h2demo"))
+HttpClient client = HttpClient.newHttpClient();
+HttpRequest req = HttpRequest.newBuilder(URI.create("https://h2demo"))
                 .version(HttpClient.Version.HTTP_2)
                 .GET().build();
-HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandler.asString());
-System.out.println(response.headers().map());
-System.out.println(response.body());
+HttpResponse<String> res = client.send(request, HttpResponse.BodyHandler.asString());
+System.out.println(res.headers().map());
+System.out.println(res.body());
 ```
 
 ---
@@ -188,8 +187,8 @@ System.out.println(response.body());
 
 h2시대의 이상적인 구성
 
-- Java 단에서 TLS처리는 느림
-	- 그 앞단에서 TLS는 벗겨내는 것이 좋음 
+- Java 서버 앞에서 TLS처리
+	- [Java단에서는 하니 3.2ms->24ms로 느려졌다는 사례](https://vanwilgenburg.wordpress.com/2017/01/10/haproxy-with-undertow-and-tomcat-in-spring-boot/)
 - Fron Web server - Backend App 서버 간에는 h2c 활용
 	- 프로토콜 전환 비용 최소화
 ![diagram-ideal](diagram-ideal.png)
@@ -210,16 +209,18 @@ h2시대의 이상적인 구성
 - Nginx + Tomcat으로 h2 서버 구성
 - 크롬 개발자 탭 (Ctrl + Shift + i)
 - HTTP/2 세션 페이지 ( chrome://net-internals/#http2 )
-- Jshell + HttpClient로 호출 테스트
+- 클라이언트 테스트
+	- JDK9 HttpClient, OkHttp, Netty
 - tshark로 Upstream 연결 확인
 	- `tshark -i lo -f 'tcp port 8080' -T fields -e _ws.col.Protocol -e _ws.col.Info`
+
 - Server push 시도
 
 ---
 
 demo는
 
-- 뒷단은 HTTP 1.1 연결
+- Nginx-Tomcat 사이에는 HTTP 1.1 연결
 - Servlet4.0의 Server push 안 먹힘
 
 ---
@@ -338,9 +339,8 @@ demo는
 	- tshark로 뒷단의 연결 확인
 - HA proxy + Tomcat으로 h2/h2c 서버구성 
 - Server push
-- JDK9 HttpClient 로 요청
-- OkHttp 로 요청
-
+- 클라이언트 호출 테스트
+	- JDK9 HttpClient, OkHttp, Netty
 ---
 
 ## 현실 적용
