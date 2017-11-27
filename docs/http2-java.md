@@ -96,7 +96,7 @@ Upgrade: h2c
 ### 익숙해질 용어
 - h2 : HTTP/2 (with TLS)
 	- 웹브라우져와 서버간의 통신
-- h2c : Clear text HTTP2/ (without TLS)
+- h2c : Clear text HTTP/2 (without TLS)
 	- Server to Server 연결
 	- 지원하는 웹브라우져는 없음
 - ALPN : Application-Layer Protocol Negotiation
@@ -121,13 +121,38 @@ Upgrade: h2c
 - 성능 체감 Demo
 	- http://www.httpvshttps.com/
 
+---
 
 ### 기대!?
 - .js, 이미지 파일 안 합쳐도 된다?
 	- 더 효율적인 파일별 캐쉬
 	- 빨리지는 FE 빌드
 - Server push로 한 페이지에 필요한 자원은 미리 전송
-	- 더 이상의 계단 그래프는 없다?
+	- 성능 그래프가 계단형에서 사다리형으로?
+
+---
+### Server push 지원 사례
+
+#### Apache httpd
+설정 파일에서 지정 가능
+
+예) 모든 html 요청이 오면 commons.css는 server push 해주기. 쿠키를 이용해서 이전 방문 여부를 검사
+
+```
+<filesMatch "\.([hH][tT][mM][lL]?)">
+    Header add Link "</assets/css/common.css>;rel=preload;as=style" env=!cssloaded
+    Header add Set-Cookie "cssloaded=1; Path=/; Secure; HttpOnly" env=!cssloaded
+</filesMatch>
+```
+
+---
+
+### Nginx
+
+---
+
+- 어플리케이션 서버에 push 관련로직을 넣을 수 있다면 보다 정교하고 유연하게 적용 가능
+	- Java 생태계를 이를 잘 지원할까?
 
 ---
 
@@ -136,7 +161,16 @@ Upgrade: h2c
 ---
 
 ###  Servlet 4.0 : Server push
-- Tomcat 9, Jetty 10에서 지원
+- `javax.servlet.http.PushBuilder`
+	- Serlvet 4.0을 지원하는 Container에서만 사용가능
+	- Tomcat 9, Jetty 10, Undertow 2.0
+- 이전 버전의 구현체
+	- Jetty 9.3에서 비표준으로 먼저 지원: `org.eclipse.jetty.server.Dispatcher`
+	- Tomcat 8.5에는 [`org.apache.catalina.servlet4preview.http.PushBuilder`](https://tomcat.apache.org/tomcat-8.5-doc/api/org/apache/catalina/servlet4preview/http/PushBuilder.html)
+
+---
+- Spring MVC Controller에서 바로 사용 가능
+	- Spring framework 5, Spring Boot 2.x 이상
 
 ```java
 
@@ -153,21 +187,40 @@ public class HomeController{
 }
 
 ```
+- Spring MVC 내부구현
+	- [ServletRequestMethodArgumentResolver](https://github.com/spring-projects/spring-framework/blob/master/spring-webmvc/src/main/java/org/springframework/web/servlet/mvc/method/annotation/ServletRequestMethodArgumentResolver.java#L72) 에서 `javax.servlet.http.PushBuilder` 관련 처리 로직 추가
+	- Tomcat 8.5, Jetty 9.3의 PushBuilder 관련 클래스는 지원하지 않음.
 
 ----
 
 ### Java9 : HttpClient
-
+동기처리 방식
 ```java
 HttpClient client = HttpClient.newHttpClient();
-HttpRequest req = HttpRequest.newBuilder(URI.create("https://h2demo"))
-                .version(HttpClient.Version.HTTP_2)
-                .GET().build();
-HttpResponse<String> res = client.send(request, HttpResponse.BodyHandler.asString());
+HttpRequest req = HttpRequest.newBuilder()
+	.uri(new URI("https://h2demo.net"))
+    .version(HttpClient.Version.HTTP_2)
+    .GET().build();
+HttpResponse<String> res = client.send(req, HttpResponse.BodyHandler.asString());
 System.out.println(res.headers().map());
 System.out.println(res.body());
 ```
 
+---
+
+비동기 방식
+
+```
+httpClient.sendAsync(req, HttpResponse.BodyHandler.asString())
+.thenApply(res -> {
+System.out.println(res.headers().map());
+return res.body();
+}).thenApply(body -> {
+System.out.println(body);
+return null;
+});
+TimeUnit.SECONDS.sleep(2);
+```
 ---
 
 ### Java9 : ALPN 지원
