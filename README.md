@@ -72,7 +72,7 @@ git checkout h2-boot-1.5.7
 JShell로 작성한 `dev-h2demo.jsh` 와 같은 파일들은 Linux 명령행에서 `./dev-h2demo.jsh`와 같이 바로 실행할 수 있다.
 
 ### Spring Boot 2.0.M6 + Tomcat 9, Server push
-- [commit 8850](https://github.com/benelog/h2demo/commit/885081c9445f8bc10e04390bb53c09e84785baec) : 버전을 올리고 server push를 추가하는 commit
+- [commit e7e62b2](https://github.com/benelog/h2demo/commit/e7e62b2da73e9db6fc30458e2c8cf884c99cf8e5) : 버전을 올리고 server push를 추가하는 commit
 - [pom.xml](https://github.com/benelog/h2demo/blob/master/pom.xml)
 - [Http2DemoApplication.java](https://github.com/benelog/h2demo/blob/master/src/main/java/net/h2demo/Http2DemoApplication.java) : Spring Boot2에 맞도록 h2 프로토콜 업그레이드 선언
 - [HomeController.java](https://github.com/benelog/h2demo/blob/master/src/main/java/net/h2demo/HomeController.java) : Server push 추가
@@ -84,7 +84,7 @@ git checkout master
 ./mvnw spring-boot:run
 ```
 
-`https://h2demo.net/faster`로 접속해서 Server push가 제대로 동작하는지 확인한다.
+`https://h2demo.net/push-test`로 접속해서 Server push가 제대로 동작하는지 확인한다.
 
 ## DEMO 2: HAProxy + Spring Boot
 ### (사전준비) HAProxy 설정
