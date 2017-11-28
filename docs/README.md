@@ -165,8 +165,8 @@ Upgrade: h2c
 	- Serlvet 4.0을 지원하는 Container에서만 사용가능
 	- Tomcat 9, Jetty 10, Undertow 2.0
 - 이전 버전의 구현체
-	- Jetty 9.3에서 비표준으로 먼저 지원: `org.eclipse.jetty.server.Dispatcher`
-	- Tomcat 8.5에는 [`org.apache.catalina.servlet4preview.http.PushBuilder`](https://tomcat.apache.org/tomcat-8.5-doc/api/org/apache/catalina/servlet4preview/http/PushBuilder.html)
+	- Jetty 9.3에서 비표준으로 먼저 지원: [`org.eclipse.jetty.server.PushBuilder`](http://download.eclipse.org/jetty/stable-9/apidocs/org/eclipse/jetty/server/PushBuilder.html)
+	- Tomcat 8.5에는 [`org.apache.catalina.servlet4preview.http.PushBuilder`](https://tomcat.apache.org/tomcat-8.5-doc/api/org/apache/catalina/servlet4preview/http/PushBuilder.html) 포함
 
 ---
 - Spring MVC Controller에서 바로 사용 가능
@@ -212,13 +212,13 @@ System.out.println(res.body());
 
 ```
 httpClient.sendAsync(req, HttpResponse.BodyHandler.asString())
-.thenApply(res -> {
-System.out.println(res.headers().map());
-return res.body();
-}).thenApply(body -> {
-System.out.println(body);
-return null;
-});
+	.thenApply(res -> {
+		System.out.println(res.headers().map());
+		return res.body();
+	}).thenApply(body -> {
+		System.out.println(body);
+		return null;
+	});
 TimeUnit.SECONDS.sleep(2);
 ```
 ---
@@ -232,23 +232,25 @@ TimeUnit.SECONDS.sleep(2);
 ---
 
 ### 이상적인 서버 구성
-
 레거시의 전형적인 구성
+
 ![diagram-legacy](diagram-legacy.png)
 
 ---
 
-h2시대의 이상적인 구성
+h2 시대의 이상적인 구성
 
-- Java 서버 앞에서 TLS처리
-	- [Java단에서는 하니 3.2ms->24ms로 느려졌다는 사례](https://vanwilgenburg.wordpress.com/2017/01/10/haproxy-with-undertow-and-tomcat-in-spring-boot/)
-- Fron Web server - Backend App 서버 간에는 h2c 활용
+- Java 서버 앞에서 TLS 처리
+	- [Java단에서는 TLS 처리하니 3.2ms->24ms로 느려졌다는 사례](https://vanwilgenburg.wordpress.com/2017/01/10/haproxy-with-undertow-and-tomcat-in-spring-boot/)
+- Fron Web server - Backend App 서버 간에는 h2c
 	- 프로토콜 전환 비용 최소화
+
 ![diagram-ideal](diagram-ideal.png)
 
 ---
 
 ### 이상적인 클라이언트
+
 - 레거시 코드에서 1~2줄만 바꿔주면 바로 HTTP/2로 통신
 
 ---
@@ -271,10 +273,11 @@ h2시대의 이상적인 구성
 
 ---
 
-demo는
+demo 결과
 
 - Nginx-Tomcat 사이에는 HTTP 1.1 연결
-- Servlet4.0의 Server push 안 먹힘
+	- HttpClient로 8080 포트에게 요청을 날리면 h2c연결이 되는데도..
+- Servlet 4.0의 Server push 안 먹힘
 
 ---
 
@@ -291,26 +294,27 @@ demo는
 ---
 
 - 안정화 되더라도 Apache httpd가 h2에 어울릴지는 의문
-	- 연결당 자원소모가큰 구조.
+	- 연결당 자원소모가 큰 구조.
 	- Event MPM이 있자만 Nginx보다 성능에서 뒤지는 것으로 나옴. (Appendix 참조)
 
 ---
 
 - Nginx : 1.9.5이상에서 HTTP/2 지원
 	- [1.9.9 미만에서는 upstream으로의HTTP/1.1 연결에 버그가 있었음](https://trac.nginx.org/nginx/changeset/78b4e10b4367b31367aad3c83c9c3acdd42397c4/nginx/)
-	- 서버저 push 지원 안 함
+	- 서버 push 지원 안 함
 	- Upstream (Backend server) 연결에 h2c를 지원안함
     	- 아직 구체적인 계획 없음
-		- Server to server 연결에서는 http/1.1로도 충분하고 인식하고 있음 (http://mailman.nginx.org/pipermail/nginx/2015-December/049445.html 참조)
+		- Nginx 개발자는 Server to server 연결에서는 http/1.1로도 충분하다고 인식하고 있음 (http://mailman.nginx.org/pipermail/nginx/2015-December/049445.html 참조)
 
 ---
 
 ### 어플리케이션 서버의 제약
-- Tomcat 9은 아직 Beta
-- Jetty 10은 아직 Snapshot
+- Servlet 4.0의 Server push를 지원하는 서버들이 아직 초창기
+  - Tomcat 9은 아직 Beta
+  - Jetty 10은 아직 Snapshot
 - AJP로는 서버 Push가 지원되지 않음.
-- Java 단에서 TLS offloading 했을 때의 느린 성능
-	- [Java단에서 27ms걸리는데 HAProxy에서하면 3.2ms가 걸렸다는 사례도 있음.](https://vanwilgenburg.wordpress.com/2017/01/10/haproxy-with-undertow-and-tomcat-in-spring-boot/)
+	- Apache httpd = AJP 구조에서는 Java단에서 서버 push를 시작할 수 없음.
+
 ---
 
 ### Java9 업그레이드의 어려움
@@ -347,12 +351,12 @@ demo는
 ---
 
 ### 정리
-- Apache httpd는 지속적 연결에 불리하고, 실행모드를 바꾸기에는 리스크가 있음.
-- Nginx는 server push를 못쓴다.
+- Apache httpd는 지속적 연결에 Nginx보다 상대적으로 불리
+- Nginx는 server push, Upstream과의 h2 연결을 하지 못함.
 - Java단에서 TLS off loading하면 느림.
 - 안정된 구성은
 	- Server push 포기
-	- Nginx -(http/1.1)- Tomcat 구성
+	- 브라우저-(h2)-> Nginx -(http/1.1)-> Tomcat 구성
 
 ---
 
@@ -360,18 +364,15 @@ demo는
 	- h2를 위해 Tomcat 9, Spring 5 올릴 필요 없다.
 - Java9 클라이언트
 	- 인큐베이터이니 테스트 정도만?
-- 내부망에서는 Server to Server 연결에서 굳이 h2(with TLS)를 써야하는지도 의문
-
+- 내부망의 Server to Server 연결에서는 굳이 h2(with TLS)를 써야하는지도 의문을 가져야함.
 
 ---
 
 - HTTP/2 시대에 대비하는 생계형 Java 개발자의 자세
 	- HTTPS 전환, Nginx 사용
-	- 이미 Nginx + HTTPS 쓰고 있다면 : Nginx 설정 한 줄 바꾸기
+	- 이미 Nginx + HTTPS 쓰고 있다면 : Nginx 설정 한 줄만 바꿔도 h2 쓸 수 있다.
 	- Servlet 4.0, Java9 Client 스펙은 아직 신경 쓰지 않아도 됨.
 
-
----
 
 ---
 
@@ -385,15 +386,23 @@ demo는
 
 ---
 
+### HAProxy
+- 오픈소스 Load balancer & Proxy 서버
+- http://d2.naver.com/helloworld/284659 참조
+	- 2013의 네이버 개발자 블로그(Helloworld)의 글
+
+---
 ### Demo 2
 
-- Nginx + Tomcat으로 h2/http1.2 서버구성
-	- 크롬으로 H2 연결 확인
-	- tshark로 뒷단의 연결 확인
-- HA proxy + Tomcat으로 h2/h2c 서버구성 
+- HAProxy + Tomcat으로 h2/h2c 서버구성 
 - Server push
 - 클라이언트 호출 테스트
 	- JDK9 HttpClient, OkHttp, Netty
+---
+
+- Demo2 결과
+![](server-push-result.png)
+
 ---
 
 ## 현실 적용
@@ -403,7 +412,7 @@ demo는
 ### Server push를 포기하고 친숙한 구성
 - 앞단에 Nginx
 	- h2는 persistent connection이기 때문에 Nginx가 유리
-- Upstream 서버는 HTTP 1.1 시대와 동일하게 하면 됨
+- Upstream 서버는 HTTP 1.1 때와 동일하게 하면 됨
 - 첫번째 Demo와 유사한 구성
 
 ---
@@ -412,14 +421,14 @@ demo는
 ![](diagram-h2-nginx.png)
 
 ---
-뒷단 서버의 구성 건드리지 않고 HAProxy만 추가해서도 가능
+뒷단 서버의 구성을 건드리지 않고 HA Proxy만 추가해서도 가능
 
 ![](diagram-h2-on-legacy.png)
 
 ---
 
 #### Server push를 지원하는 서버 구성
-- HAProxy -> Tomcat 바로 연결
+- HAProxy -> Tomcat 연결
 	- Demo2와 같은 구성
 
 ![](diagram-h2-demo2.png)
@@ -432,6 +441,7 @@ demo는
 ![](diagram-h2-tomcat-native.png)
 
 ---
+
 - 기존 서버 구성과 달라려서 고민해봐야할것
 	- Health check 방식
 	- 배포 시 서버를 제외하는 방식
@@ -440,9 +450,12 @@ demo는
 
 ### 클라이언트 모듈 선택
 - 내부망에서의 호출은 HTTP 1.1로 충분할 수 있음.
- 	- OkHttp도 아직 h2c 미지원 
+ 	- OkHttp도 아직 h2c 미지원
 - 외부 서버와 HTTPS + HTTP/2 호출을 해야한다면
 	- 현시점에서는 OkHttp 추천
+- Java9 HttpClient는 h2c까지도 지원한다는 장점이 있음.
+	- 테스트용 스크립트를 만들기에 좋음 
+
 
 ---
 RestTemplate + OkHttp3
@@ -469,7 +482,10 @@ System.out.println(response.getBody());
 - Cache 되지 않은 파일만 push하는 스펙도 제안 중
 	- https://tools.ietf.org/html/draft-ietf-httpbis-cache-digest-02
 
- 
+---
+### Server to Serve 연결에 h2c vs HTTP/1.1
+- h2c의 muplexing을 이용하면 Connetion pool 구성이 어떻게 달라져야할까?
+
 ---
 
 ### 프레임워크 지원
@@ -483,16 +499,16 @@ System.out.println(response.getBody());
 - HTTP/2 서버 시대를 맞이하는 2개의 길
 	- 길1: 기존에 익숙한 서버 구성을 쓰고 Server push를 포기하기
 		- 충분히 좋은 선택일수도 있다.
-		- 이 길에서도 Apache httpd + AJP의 시대는 지나가고 있을지도 모른다.
+		- 이 길에서도 Apache httpd + AJP의 전망은 밝지 않다
 	- 길2: Server push의 쓰임새를 찾아보기
-		- 기존과 서버 구성이 많이 바뀔 수 있다. 
+		- 기존과 서버 구성이 많이 바뀔 수 있다
 
 ---
 
 - 클라이언트 : 더 더양한 프로그램밍 모델, 라이브러리가 난립하는 시대.
 	- Spring 내에서도 RestTemplate, AsyncRestTemplate, WebClient
 	- HTTP/2지원 여부까지 포함하면 경우의 수가 더 많아짐. 
-	- 다양한 시도와 공유가 필요.
+	- 다양한 시도와 공유가 필요
 
 ---
 - 아직까지 기회의 땅
