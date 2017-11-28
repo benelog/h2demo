@@ -85,6 +85,7 @@ Connection: Keep-Alive
 
 - 1.1로 요청이 오면 응답 코드 101을 내릴 수 있다.
 	- https://http2.github.io/http2-spec/#discover-http 참조
+
 ```
 HTTP/1.1 101 Switching Protocols
 Connection: Upgrade
@@ -119,7 +120,10 @@ Upgrade: h2c
 ---
 
 - 성능 체감 Demo
-	- http://www.httpvshttps.com/
+	- http://www.http2demo.io/
+	- https://http2.akamai.com/demo
+	- https://www.httpvshttps.com/
+	- https://www.tunetheweb.com/performance-test/
 
 ---
 
@@ -144,16 +148,19 @@ Upgrade: h2c
     Header add Set-Cookie "cssloaded=1; Path=/; Secure; HttpOnly" env=!cssloaded
 </filesMatch>
 ```
-
 ---
 
-### Nginx
+### nghttpx
+- A reverse proxy for HTTP/2, HTTP/1 and SPDY.
+- Response 헤더에 Link헤더 필드가 있으면 server push를 해 줌.
 
+```
+Link: </assets/css/common.css>; rel=preload
+```
 ---
 
-- 어플리케이션 서버에 push 관련로직을 넣을 수 있다면 보다 정교하고 유연하게 적용 가능
+- 어플리케이션 서버에 push 관련 로직을 넣을 수 있다면 보다 정교하고 유연하게 적용 가능
 	- Java 생태계를 이를 잘 지원할까?
-
 ---
 
 ## Java 생태계의 HTTP/2 지원
@@ -354,9 +361,9 @@ demo 결과
 - Apache httpd는 지속적 연결에 Nginx보다 상대적으로 불리
 - Nginx는 server push, Upstream과의 h2 연결을 하지 못함.
 - Java단에서 TLS off loading하면 느림.
-- 안정된 구성은
-	- Server push 포기
+- Servlet 4.0의 Server push을 포기하면 익숙한 뒷단 구성을 살릴 수 있음.
 	- 브라우저-(h2)-> Nginx -(http/1.1)-> Tomcat 구성
+- nghttpx을 앞단에 두고 LINK 헤더를 이용한 push 자원 지정 방식도 가능
 
 ---
 
@@ -428,7 +435,19 @@ demo 결과
 ---
 
 #### Server push를 지원하는 서버 구성
+- nghttpx를 이용한 구성
+	- 뒷단 연결이 HTTP/1.1 이면 Servlet 4.0의 Server push를 사용 불가
+	- LINK 헤더를 이용한 Server push 가능
+	-  nghttpx와 Tomct중간에 Apache httpd 또는 Nginx를 넣을수도 있음.
+
+![](diagram-h2-nghttpx.png)
+
+
+---
+
 - HAProxy -> Tomcat 연결
+	- Servlet 4.0 server push 사용 가능 
+	- [Jetty에서도 권장하는 방식](https://www.eclipse.org/jetty/documentation/9.3.x/http2-configuring-haproxy.html)
 	- Demo2와 같은 구성
 
 ![](diagram-h2-demo2.png)
@@ -436,6 +455,7 @@ demo 결과
 ---
 
 - L4 Switch -> Tomcat
+ 	- Servlet 4.0 server push 사용 가능
 	- TLS offloading은 [Forked Tomcat native](http://netty.io/wiki/forked-tomcat-native.html) 로
 
 ![](diagram-h2-tomcat-native.png)
@@ -476,11 +496,15 @@ System.out.println(response.getBody());
 ---
 
 ### Server push의 최적 활용 방식 찾기
-- 무작정 쓴다고 이득이 되는것은 아니다.
-- 예) 쿠키를 검사해서 신규 방문자일때만 push
+- 불필요하게 push하지 않는 규칙이 필요
+	- 예) 쿠키를 검사해서 신규 방문자일때만 push
 - [Rules of Thumb for HTTP/2 Push](https://docs.google.com/document/d/1K0NykTXBbbbTlv60t5MyJvXjqKGsCVNYHyLEXIxYMv0/edit) 참조
-- Cache 되지 않은 파일만 push하는 스펙도 제안 중
-	- https://tools.ietf.org/html/draft-ietf-httpbis-cache-digest-02
+
+---
+- 더 효율적인 전송을 위해 제안된 스펙
+	- [Cache Digests for HTTP/2](https://tools.ietf.org/html/draft-ietf-httpbis-cache-digest-02) : Cache 되지 않은 파일만 push할 수 있도록 클라이언트가 서버에게 알려 줌
+	- [An HTTP Status Code for Indicating Hints
+](https://tools.ietf.org/html/draft-ietf-httpbis-early-hints-05) : Client에게 힌트를 때 쓸 수 있는 새로운 상태 코드
 
 ---
 ### Server to Serve 연결에 h2c vs HTTP/1.1
