@@ -127,6 +127,13 @@ Upgrade: h2c
 
 ---
 
+
+- HTTPS로 서비스할 사이트에는 HTTP/2로 안 하면 성능에서 불리
+- HTTPS로 서비스 안 하기에는
+	- HTTPS가 아닌 사이트에 대한 크롬의 경고 때문에 압박이 있음
+
+---
+
 ### 기대!?
 - .js, 이미지 파일 안 합쳐도 된다?
 	- 더 효율적인 파일별 캐쉬
@@ -135,6 +142,7 @@ Upgrade: h2c
 	- 성능 그래프가 계단형에서 사다리형으로?
 
 ---
+
 ### Server push 지원 사례
 
 #### Apache httpd
@@ -151,6 +159,7 @@ Upgrade: h2c
 ---
 
 ### nghttpx
+
 - A reverse proxy for HTTP/2, HTTP/1 and SPDY.
 - Response 헤더에 Link헤더 필드가 있으면 server push를 해 줌.
 
