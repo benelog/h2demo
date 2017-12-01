@@ -14,6 +14,7 @@ import org.springframework.web.client.RestTemplate;
 
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.JdkSslContext;
+import io.netty.handler.ssl.SslContext;
 import okhttp3.OkHttpClient;
 
 
@@ -47,14 +48,21 @@ public class H2ClientTest {
 		getHome(restTemplate);
 	}
 
+
 	@Test
 	public void getHome_netty() throws Exception {
+		System.setProperty("io.netty.noUnsafe", "true");
 		Netty4ClientHttpRequestFactory requestFactory = new Netty4ClientHttpRequestFactory();
 		requestFactory.setSslContext(new JdkSslContext(context, true, ClientAuth.NONE));
+		SslContext sslContext = new JdkSslContext(context, true, ClientAuth.NONE);
+		// 아래와 같이 SslContext를 생성해도 됨.
+		// SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build();
+		requestFactory.setSslContext(sslContext);
 		RestTemplate restTemplate = new RestTemplate(requestFactory);
 
 		getHome(restTemplate);
 	}
+
 	private void getHome(RestTemplate restTemplate) {
 		ResponseEntity<String> response = restTemplate.getForEntity("https://h2demo.net", String.class);
 
