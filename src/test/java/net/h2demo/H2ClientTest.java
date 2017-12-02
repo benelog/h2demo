@@ -2,6 +2,7 @@ package net.h2demo;
 
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.*;
 
@@ -10,7 +11,10 @@ import org.junit.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.Netty4ClientHttpRequestFactory;
 import org.springframework.http.client.OkHttp3ClientHttpRequestFactory;
+import org.springframework.http.client.reactive.ClientHttpConnector;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.JdkSslContext;
@@ -63,6 +67,30 @@ public class H2ClientTest {
 		getHome(restTemplate);
 	}
 
+	@Test
+	public void getHome_webClient() throws InterruptedException {
+		System.setProperty("io.netty.noUnsafe", "true");
+
+		SslContext sslContext = new JdkSslContext(context, true, ClientAuth.NONE);
+		ClientHttpConnector connector = new ReactorClientHttpConnector(opt -> opt.sslContext(sslContext));
+		WebClient client = WebClient.builder()
+				.baseUrl("https://h2demo.net")
+				.clientConnector(connector)
+				.build();
+
+		client.get()
+				.uri("/")
+				.exchange()
+				.flatMap(res -> res.toEntity(String.class))
+				.subscribe(entity -> {
+					System.out.println(entity.getBody());
+					System.out.println(entity.getHeaders());
+
+				});
+
+		TimeUnit.SECONDS.sleep(1);
+
+	}
 	private void getHome(RestTemplate restTemplate) {
 		ResponseEntity<String> response = restTemplate.getForEntity("https://h2demo.net", String.class);
 
